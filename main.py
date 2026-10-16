@@ -84,3 +84,38 @@ def delete_book(book_id: int):
     if deleted == 0:
         raise HTTPException(status_code=404, detail="Book not found")
     return {"message": "Book deleted successfully"}
+# for members
+class MemberIn(BaseModel):
+    name: str
+    phone: str
+    joined_date: str
+
+
+# get all members
+@app.get("/members")
+def get_members(search: str = ""):
+    conn = get_db()
+    pattern = f"%{search}%"
+    rows = conn.execute("SELECT * FROM members WHERE name LIKE ? OR phone LIKE ?", 
+                        (pattern, pattern)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+@app.post("/members")
+def add_member(member: MemberIn):
+    conn = get_db()
+    cur = conn.execute("INSERT INTO members(name, phone, joined_date) VALUES (?,?,?)", 
+                        (member.name, member.phone, member.joined_date))
+    conn.commit()
+    new_id = cur.lastrowid
+    conn.close()
+    return {"id": new_id, "message": "Member added successfully"}
+@app.delete("/members/{member_id}")
+def delete_member(member_id: int):
+    conn = get_db()
+    conn.execute("DELETE FROM members WHERE id = ?", (member_id,))
+    conn.commit()
+    deleted = conn.total_changes
+    conn.close()
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return {"message": "Member deleted successfully"}
