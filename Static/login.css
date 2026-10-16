@@ -1,0 +1,39 @@
+/* Login page extras (the main theme comes from style.css) */
+
+.login-desk {
+  max-width: 480px;
+  padding-top: 8vh;
+}
+
+.login-card {
+  margin-top: 18px;
+  border-radius: 6px;
+  transform: rotate(-0.8deg);
+}
+
+.login-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-hint {
+  margin: -6px 0 18px;
+  font-family: var(--font-hand);
+  font-size: 1.35rem;
+  color: var(--ink-soft);
+}
+
+.login-error {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: var(--font-hand);
+  font-size: 1.3rem;
+  color: #4a0d0d;
+  background: linear-gradient(180deg, #ffe1d6, #f4b8a6);
+  border-radius: 3px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .3);
+}
+.login-error[hidden] { display: none; }
+
+.login-card .btn { align-self: stretch; }
