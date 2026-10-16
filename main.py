@@ -9,7 +9,7 @@ import sqlite3
 app = FastAPI()
 @app.get("/")
 def read_index():
-    return FileResponse("Static/index.html")
+    return FileResponse("Static/login.html")
 app.mount("/static", StaticFiles(directory="Static"))
 #data base connection
 def get_db():
