@@ -22,23 +22,33 @@
     </header>
 
     <main class="paper-panel login-card">
-      <h2>Member Login</h2>
-      <p class="login-hint">New here? Just sign in and you will be added as a member.</p>
+      <h2 id="form-title">Sign In</h2>
+      <p id="form-hint" class="login-hint">Welcome back! Enter your details.</p>
 
       <form id="login-form" autocomplete="off">
         <div class="field">
-          <label for="login-name">Name</label>
-          <input id="login-name" type="text" required maxlength="120">
+          <label for="login-username">Username</label>
+          <input id="login-username" type="text" required maxlength="60">
         </div>
         <div class="field">
           <label for="login-phone">Phone</label>
           <input id="login-phone" type="tel" required maxlength="20" inputmode="tel">
         </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" required minlength="4" maxlength="100" autocomplete="current-password">
+        </div>
 
+        <p id="login-ok" class="login-ok" role="status" hidden></p>
         <p id="login-error" class="login-error" role="alert" hidden></p>
 
         <button type="submit" id="login-btn" class="btn btn-brass">Sign In</button>
       </form>
+
+      <p class="switch-row">
+        <span id="switch-text">New user?</span>
+        <button type="button" id="switch-btn" class="link-btn">Create an account</button>
+      </p>
     </main>
   </div>
 

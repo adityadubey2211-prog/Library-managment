@@ -206,3 +206,39 @@ def return_book(issue_id: int):
     conn.close()
     
     return {"message": "Book returned successfully", "fine": fine}  
+
+# login page
+def get_login_db():
+    conn = sqlite3.connect("login.db")
+    conn.row_factory = sqlite3.Row
+    return conn
+def login_db():
+    conn = get_login_db()
+    conn.execute(""" 
+                CREATE TABLE IF NOT EXISTS login(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                password TEXT NOT NULL
+                )
+    """)
+    conn.commit()
+    conn.close()
+login_db()
+    
+class LoginIn(BaseModel):
+    username: str
+    phone: str
+    password: str
+    
+    
+@app.get("/login")
+def login_user(data: LoginIn):
+    conn = get_login_db()
+    user = conn.execute("SELECT * FROM login WHERE username = ? AND phone = ? AND password = ?", 
+                        (data.username, data.phone, data.password)).fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    conn.close()
+    return {"message": "Login successful"}
