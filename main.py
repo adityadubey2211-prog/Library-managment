@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -88,7 +89,6 @@ def delete_book(book_id: int):
 class MemberIn(BaseModel):
     name: str
     phone: str
-    joined_date: str
 
 
 # get all members
@@ -104,7 +104,7 @@ def get_members(search: str = ""):
 def add_member(member: MemberIn):
     conn = get_db()
     cur = conn.execute("INSERT INTO members(name, phone, joined_date) VALUES (?,?,?)", 
-                        (member.name, member.phone, member.joined_date))
+                        (member.name, member.phone, date.today().isoformat()))
     conn.commit()
     new_id = cur.lastrowid
     conn.close()
