@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Library Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Playfair+Display:wght@600;700;900&family=Special+Elite&display=swap" rel="stylesheet">
+  <!-- Reuse the main theme, then add login-only styles -->
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/login.css">
+</head>
+<body>
+  <div class="desk login-desk">
+
+    <header class="leather-header">
+      <div class="stitch">
+        <h1 class="embossed-title">The Old Oak Library</h1>
+        <p class="subtitle">Sign the visitors' register</p>
+      </div>
+    </header>
+
+    <main class="paper-panel login-card">
+      <h2>Member Login</h2>
+      <p class="login-hint">New here? Just sign in and you will be added as a member.</p>
+
+      <form id="login-form" autocomplete="off">
+        <div class="field">
+          <label for="login-name">Name</label>
+          <input id="login-name" type="text" required maxlength="120">
+        </div>
+        <div class="field">
+          <label for="login-phone">Phone</label>
+          <input id="login-phone" type="tel" required maxlength="20" inputmode="tel">
+        </div>
+
+        <p id="login-error" class="login-error" role="alert" hidden></p>
+
+        <button type="submit" id="login-btn" class="btn btn-brass">Sign In</button>
+      </form>
+    </main>
+  </div>
+
+  <script src="/static/login.js"></script>
+</body>
+</html>
