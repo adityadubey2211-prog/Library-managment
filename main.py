@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import sqlite3
@@ -66,11 +66,12 @@ def get_books(search: str = ""):
 @app.post("/books")
 def add_book(book: BookIn):
     conn = get_db()
-    conn.execute("INSERT INTO books (title, author, copies_available) VALUES (?, ?, ?)",
+    cur = conn.execute("INSERT INTO books (title, author, copies_available) VALUES (?, ?, ?)",
                  (book.title, book.author, book.copies_available))
     conn.commit()
+    new_id = cur.lastrowid
     conn.close()
-    return {"id": book.title, "message": "Book added successfully"}
+    return {"id": new_id, "message": "Book added successfully"}
 
 # delete a book from the database
 @app.delete("/books/{book_id}")
@@ -78,5 +79,8 @@ def delete_book(book_id: int):
     conn = get_db()
     conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
     conn.commit()
+    deleted = conn.total_changes
     conn.close()
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Book not found")
     return {"message": "Book deleted successfully"}
