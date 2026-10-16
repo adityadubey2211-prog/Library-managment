@@ -2,7 +2,7 @@
 
 .login-desk {
   max-width: 480px;
-  padding-top: 8vh;
+  padding-top: 6vh;
 }
 
 .login-card {
@@ -24,16 +24,47 @@
   color: var(--ink-soft);
 }
 
-.login-error {
+.login-error,
+.login-ok {
   margin: 0;
   padding: 8px 12px;
   font-family: var(--font-hand);
   font-size: 1.3rem;
-  color: #4a0d0d;
-  background: linear-gradient(180deg, #ffe1d6, #f4b8a6);
   border-radius: 3px;
   box-shadow: 0 3px 6px rgba(0, 0, 0, .3);
 }
-.login-error[hidden] { display: none; }
+.login-error {
+  color: #4a0d0d;
+  background: linear-gradient(180deg, #ffe1d6, #f4b8a6);
+}
+.login-ok {
+  color: #123a1a;
+  background: linear-gradient(180deg, #e3f5d8, #bfe3aa);
+}
+.login-error[hidden],
+.login-ok[hidden] { display: none; }
 
 .login-card .btn { align-self: stretch; }
+
+/* "New user? Create an account" row */
+.switch-row {
+  margin: 22px 0 0;
+  text-align: center;
+  font-family: var(--font-hand);
+  font-size: 1.3rem;
+}
+.link-btn {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--red);
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.link-btn:focus-visible {
+  outline: 3px solid #2a6fb5;
+  outline-offset: 2px;
+}
