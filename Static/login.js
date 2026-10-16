@@ -1,15 +1,12 @@
 
 /* ==========================================================
-   login.js: Sign In + New User (register)
+   login.js: Sign In + New User (Register)
 
    Backend endpoints:
      POST /signin -> {username, phone, password}
      POST /login  -> {username, phone, password}
-
-   Errors -> {detail: "..."}
    ========================================================== */
 
-// Empty URL means frontend and backend are served from the same origin.
 const BASE_URL = "";
 
 const form = document.getElementById("login-form");
@@ -22,20 +19,7 @@ const switchText = document.getElementById("switch-text");
 const switchBtn = document.getElementById("switch-btn");
 const passwordInput = document.getElementById("login-password");
 
-let mode = "login"; // "login" or "signup"
-
-/* If the user is already logged in, skip this page */
-function alreadyLoggedIn() {
-  try {
-    return !!localStorage.getItem("member");
-  } catch (err) {
-    return false;
-  }
-}
-
-if (alreadyLoggedIn()) {
-  window.location.href = "/";
-}
+let mode = "login";
 
 /* Show error message */
 function showError(message) {
@@ -80,11 +64,13 @@ function setMode(newMode) {
 }
 
 /* Switch form mode */
-switchBtn.addEventListener("click", () => {
+switchBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+
   setMode(mode === "login" ? "signup" : "login");
 });
 
-/* Helper for API requests */
+/* API request helper */
 async function post(path, body) {
   let response;
 
@@ -98,16 +84,16 @@ async function post(path, body) {
     });
   } catch (err) {
     throw new Error(
-      "Cannot reach the server. Please check whether FastAPI is running."
+      "Cannot reach the server. Check whether FastAPI is running."
     );
   }
 
-  let data = null;
+  let data;
 
   try {
     data = await response.json();
   } catch (err) {
-    // Response did not contain valid JSON.
+    data = null;
   }
 
   if (!response.ok) {
@@ -118,12 +104,11 @@ async function post(path, body) {
     } else if (
       data &&
       Array.isArray(data.detail) &&
-      data.detail[0] &&
-      data.detail[0].msg
+      data.detail.length > 0
     ) {
-      message = data.detail[0].msg;
+      message = data.detail[0].msg || message;
     } else if (response.status === 404) {
-      message = "API endpoint not found. Check the FastAPI route.";
+      message = "API endpoint not found. Check main.py routes.";
     }
 
     throw new Error(message);
@@ -133,9 +118,13 @@ async function post(path, body) {
 }
 
 /* Handle form submission */
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
   hideMessages();
+
+  if (button.disabled) {
+    return;
+  }
 
   const username = document
     .getElementById("login-username")
@@ -156,26 +145,23 @@ form.addEventListener("submit", async (e) => {
 
   try {
     if (mode === "signup") {
-      // Correct backend endpoint: /signin
       await post("/signin", {
         username: username,
         phone: phone,
         password: password
       });
 
-      // Account created. Ask the user to sign in.
       passwordInput.value = "";
       setMode("login");
       showOk("Account created! Now sign in.");
     } else {
-      // Existing user login
       const user = await post("/login", {
         username: username,
         phone: phone,
         password: password
       });
 
-      // Save login information in this browser
+      // Save login information after successful login
       localStorage.setItem(
         "member",
         JSON.stringify({
@@ -184,12 +170,15 @@ form.addEventListener("submit", async (e) => {
         })
       );
 
-      // Redirect to the library dashboard
-      window.location.href = "/";
+      // Redirect only after successful login
+      window.location.replace("/");
     }
   } catch (err) {
-    showError(err.message);
+    showError(err.message || "An unexpected error occurred.");
   } finally {
     button.disabled = false;
   }
 });
+
+/* Initialize login mode */
+setMode("login");
