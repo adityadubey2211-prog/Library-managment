@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -119,3 +119,87 @@ def delete_member(member_id: int):
     if deleted == 0:
         raise HTTPException(status_code=404, detail="Member not found")
     return {"message": "Member deleted successfully"}
+
+# issue or return a book
+class IssueIn(BaseModel):
+    book_id: int
+    member_id: int
+
+
+@app.get("/issued")
+def get_issues():
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT issues.id, books.title AS title, members.name AS member, 
+               issues.issue_date, issues.due_date, issues.return_date, issues.fine
+        FROM issues
+        JOIN books ON issues.book_id = books.id
+        JOIN members ON issues.member_id = members.id
+    """).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+@app.post("/issue")
+def issue_book(data: IssueIn):
+    conn = get_db()
+    # Check if the book is available
+    book = conn.execute("SELECT * FROM books WHERE id = ?", (data.book_id,)).fetchone()
+    if not book:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Book not found")
+    if book["copies_available"] <= 0:
+        conn.close()
+        raise HTTPException(status_code=400, detail="No copies available for this book")
+    
+    # Check if the member exists
+    member = conn.execute("SELECT * FROM members WHERE id = ?", (data.member_id,)).fetchone()
+    if not member:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Member not found")
+    
+    # Issue the book
+    issue_date = date.today().isoformat()
+    due_date = (date.today() + timedelta(days=14)).isoformat()  # 2 weeks loan period
+    conn.execute("INSERT INTO issues (book_id, member_id, issue_date, due_date) VALUES (?, ?, ?, ?)",
+                 (data.book_id, data.member_id, issue_date, due_date))
+    
+    # Update the number of available copies
+    conn.execute("UPDATE books SET copies_available = copies_available - 1 WHERE id = ?", (data.book_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Book issued successfully", "due_date": due_date}
+
+# return a book
+class ReturnIn(BaseModel):
+    issue_id: int
+    
+@app.post("/return/{issue_id}")
+def return_book(issue_id: int):
+    conn = get_db()
+    issue = conn.execute("SELECT * FROM issues WHERE id = ?", (issue_id,)).fetchone()
+    if not issue:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Issue record not found")
+    
+    if issue["return_date"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Book has already been returned")
+    
+    return_date = date.today().isoformat()
+    due_date = date.fromisoformat(issue["due_date"])
+    fine = 0
+    if date.today() > due_date:
+        fine = (date.today() - due_date).days * 1  # Assuming $1 fine per day
+    
+    conn.execute("UPDATE issues SET return_date = ?, fine = ? WHERE id = ?", 
+                 (return_date, fine, issue_id))
+    
+    # Update the number of available copies
+    conn.execute("UPDATE books SET copies_available = copies_available + 1 WHERE id = ?", (issue["book_id"],))
+    
+    conn.commit()
+    conn.close()
+    
+    return {"message": "Book returned successfully", "fine": fine}  
