@@ -218,7 +218,7 @@ def login_db():
                 CREATE TABLE IF NOT EXISTS login(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
-                phone TEXT NOT NULL,
+                phone TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL
                 )
     """)
@@ -232,13 +232,75 @@ class LoginIn(BaseModel):
     password: str
     
     
-@app.get("/login")
+# LOGIN
+@app.post("/login")
 def login_user(data: LoginIn):
     conn = get_login_db()
-    user = conn.execute("SELECT * FROM login WHERE username = ? AND phone = ? AND password = ?", 
-                        (data.username, data.phone, data.password)).fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(status_code=404, detail="User not found")
+
+    user = conn.execute(
+        "SELECT * FROM login WHERE username = ? AND phone = ? AND password = ?",
+        (data.username, data.phone, data.password)
+    ).fetchone()
+
     conn.close()
-    return {"message": "Login successful"}
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username, phone or password"
+        )
+
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "message": "Login successful"
+    }
+
+
+# adding a new user to the login database and members database
+@app.post("/signin")
+def signin_user(data: LoginIn):
+    login_conn = get_login_db()
+    members_conn = get_db()
+
+    try:
+        # Check whether the phone number already exists
+        existing_user = login_conn.execute(
+            "SELECT id FROM login WHERE phone = ?",
+            (data.phone,)
+        ).fetchone()
+
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Account already exists. Please login."
+            )
+
+        # Create account in login.db
+        login_conn.execute(
+            "INSERT INTO login (username, phone, password) VALUES (?, ?, ?)",
+            (data.username, data.phone, data.password)
+        )
+
+        # Automatically add the user to library.db members table
+        members_conn.execute(
+            "INSERT INTO members (name, phone, joined_date) VALUES (?, ?, ?)",
+            (data.username, data.phone, date.today().isoformat())
+        )
+
+        login_conn.commit()
+        members_conn.commit()
+
+        return {
+            "message": "Account created successfully",
+            "username": data.username
+        }
+
+    except Exception:
+        login_conn.rollback()
+        members_conn.rollback()
+        raise
+
+    finally:
+        login_conn.close()
+        members_conn.close()

@@ -1,11 +1,15 @@
+
 /* ==========================================================
    login.js: Sign In + New User (register)
-   Backend contract:
-     POST /signup  {username, phone, password} -> {id, message}
-     POST /login   {username, phone, password} -> {id, username, message}
-     errors        -> {detail: "..."}
+
+   Backend endpoints:
+     POST /signin -> {username, phone, password}
+     POST /login  -> {username, phone, password}
+
+   Errors -> {detail: "..."}
    ========================================================== */
 
+// Empty URL means frontend and backend are served from the same origin.
 const BASE_URL = "";
 
 const form = document.getElementById("login-form");
@@ -25,33 +29,39 @@ function alreadyLoggedIn() {
   try {
     return !!localStorage.getItem("member");
   } catch (err) {
-    return false; // storage blocked: just show the form
+    return false;
   }
 }
+
 if (alreadyLoggedIn()) {
   window.location.href = "/";
 }
 
-/* Messages (textContent keeps them safe from HTML) */
+/* Show error message */
 function showError(message) {
   okBox.hidden = true;
   errorBox.textContent = message;
   errorBox.hidden = false;
 }
+
+/* Show success message */
 function showOk(message) {
   errorBox.hidden = true;
   okBox.textContent = message;
   okBox.hidden = false;
 }
+
+/* Hide messages */
 function hideMessages() {
   errorBox.hidden = true;
   okBox.hidden = true;
 }
 
-/* Switch between Sign In and New User */
+/* Switch between Sign In and Create Account */
 function setMode(newMode) {
   mode = newMode;
   hideMessages();
+
   if (mode === "login") {
     titleEl.textContent = "Sign In";
     hintEl.textContent = "Welcome back! Enter your details.";
@@ -68,43 +78,73 @@ function setMode(newMode) {
     passwordInput.autocomplete = "new-password";
   }
 }
-switchBtn.addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
 
-/* One helper for both API calls */
+/* Switch form mode */
+switchBtn.addEventListener("click", () => {
+  setMode(mode === "login" ? "signup" : "login");
+});
+
+/* Helper for API requests */
 async function post(path, body) {
   let response;
+
   try {
     response = await fetch(BASE_URL + path, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
     });
   } catch (err) {
-    throw new Error("Cannot reach the server. Please check your connection.");
+    throw new Error(
+      "Cannot reach the server. Please check whether FastAPI is running."
+    );
   }
 
   let data = null;
-  try { data = await response.json(); } catch (err) { /* no JSON body */ }
+
+  try {
+    data = await response.json();
+  } catch (err) {
+    // Response did not contain valid JSON.
+  }
 
   if (!response.ok) {
-    let msg = "Something went wrong.";
+    let message = "Something went wrong.";
+
     if (data && typeof data.detail === "string") {
-      msg = data.detail;
-    } else if (data && Array.isArray(data.detail) && data.detail[0] && data.detail[0].msg) {
-      msg = data.detail[0].msg; // FastAPI validation error
+      message = data.detail;
+    } else if (
+      data &&
+      Array.isArray(data.detail) &&
+      data.detail[0] &&
+      data.detail[0].msg
+    ) {
+      message = data.detail[0].msg;
+    } else if (response.status === 404) {
+      message = "API endpoint not found. Check the FastAPI route.";
     }
-    throw new Error(msg);
+
+    throw new Error(message);
   }
+
   return data;
 }
 
-/* Handle the form submit */
+/* Handle form submission */
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   hideMessages();
 
-  const username = document.getElementById("login-username").value.trim();
-  const phone = document.getElementById("login-phone").value.trim();
+  const username = document
+    .getElementById("login-username")
+    .value.trim();
+
+  const phone = document
+    .getElementById("login-phone")
+    .value.trim();
+
   const password = passwordInput.value;
 
   if (!username || !phone || !password) {
@@ -113,17 +153,38 @@ form.addEventListener("submit", async (e) => {
   }
 
   button.disabled = true;
+
   try {
     if (mode === "signup") {
-      await post("/signup", { username, phone, password });
-      // New user created: now ask them to sign in
+      // Correct backend endpoint: /signin
+      await post("/signin", {
+        username: username,
+        phone: phone,
+        password: password
+      });
+
+      // Account created. Ask the user to sign in.
       passwordInput.value = "";
       setMode("login");
       showOk("Account created! Now sign in.");
     } else {
-      const user = await post("/login", { username, phone, password });
-      // Remember who is logged in (this browser only)
-      localStorage.setItem("member", JSON.stringify({ id: user.id, name: user.username || username }));
+      // Existing user login
+      const user = await post("/login", {
+        username: username,
+        phone: phone,
+        password: password
+      });
+
+      // Save login information in this browser
+      localStorage.setItem(
+        "member",
+        JSON.stringify({
+          id: user.id,
+          name: user.username || username
+        })
+      );
+
+      // Redirect to the library dashboard
       window.location.href = "/";
     }
   } catch (err) {
