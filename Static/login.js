@@ -1,6 +1,5 @@
 
 const BASE_URL = "";
-
 const form = document.getElementById("login-form");
 const button = document.getElementById("login-btn");
 const errorBox = document.getElementById("login-error");
@@ -158,7 +157,9 @@ form.addEventListener("submit", async (event) => {
         "member",
         JSON.stringify({
           id: user.id,
-          name: user.username || username
+          name: user.username || username,
+          role: user.role,
+          token: user.token
         })
       );
 

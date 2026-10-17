@@ -5,11 +5,27 @@
 /* ---------- 1. API helper: change BASE_URL in ONE place ---------- */
 const BASE_URL = "";
 
+
+/* Read the token saved at login */
+function getToken() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("member"));
+    return saved ? saved.token : null;
+  } catch (err) {
+    return null;
+  }
+}
+
 async function request(path, options = {}) {
   let response;
   try {
+    const headers = { "Content-Type": "application/json" };
+    const token = getToken();
+    if (token) {
+      headers["Authorization"] = "Bearer " + token;
+    }
     response = await fetch(BASE_URL + path, {
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       ...options,
     });
   } catch (err) {

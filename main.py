@@ -1,13 +1,37 @@
+import secrets
 import os, hmac, hashlib
 from datetime import date, timedelta
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import sqlite3
 
 
 app = FastAPI()
+
+session = {}
+
+def get_current_user(authorization: str = Header(default=None)):
+    if authorization is None or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="please login first")
+    token = authorization[7:] # Remove "Bearer " prefix
+    user = session.get(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="session expired. please  login again")
+    return user
+
+
+def require_admin(user = Depends(get_current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code = 403, detail = "only Admin can do this")
+    return user
+
+
+
+
+
+
 @app.get("/login")
 def read_index():
     return FileResponse("Static/login.html")
@@ -69,7 +93,7 @@ def get_books(search: str = ""):
 # add a book to the database
 
 @app.post("/books")
-def add_book(book: BookIn):
+def add_book(book: BookIn, admin = Depends(require_admin)):
     conn = get_db()
     cur = conn.execute("INSERT INTO books (title, author, copies_available) VALUES (?, ?, ?)",
                  (book.title, book.author, book.copies_available))
@@ -80,7 +104,7 @@ def add_book(book: BookIn):
 
 # delete a book from the database
 @app.delete("/books/{book_id}")
-def delete_book(book_id: int):
+def delete_book(book_id: int, admin = Depends(require_admin)):
     conn = get_db()
     conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
     conn.commit()
@@ -100,12 +124,15 @@ class MemberIn(BaseModel):
 def get_members(search: str = ""):
     conn = get_db()
     pattern = f"%{search}%"
-    rows = conn.execute("SELECT * FROM members WHERE name LIKE ? OR phone LIKE ?", 
-                        (pattern, pattern)).fetchall()
+    rows = conn.execute(
+        "SELECT * FROM members WHERE name LIKE ? OR phone LIKE ?",
+        (pattern, pattern)
+    ).fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
 @app.post("/members")
-def add_member(member: MemberIn):
+def add_member(member: MemberIn, admin = Depends(require_admin)):
     conn = get_db()
     cur = conn.execute("INSERT INTO members(name, phone, joined_date) VALUES (?,?,?)", 
                         (member.name, member.phone, date.today().isoformat()))
@@ -114,7 +141,7 @@ def add_member(member: MemberIn):
     conn.close()
     return {"id": new_id, "message": "Member added successfully"}
 @app.delete("/members/{member_id}")
-def delete_member(member_id: int):
+def delete_member(member_id: int, admin = Depends(require_admin)):
     conn = get_db()
     conn.execute("DELETE FROM members WHERE id = ?", (member_id,))
     conn.commit()
@@ -220,7 +247,8 @@ def login_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
                 phone TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL
+                password TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user'
                 )
     """)
     conn.commit()
@@ -231,6 +259,11 @@ class LoginIn(BaseModel):
     username: str
     phone: str
     password: str
+
+
+# session = {}
+
+
 # storing password securely using hashing
 def hash_password(password):
     salt = os.urandom(16)
@@ -260,10 +293,18 @@ def login_user(data: LoginIn):
             status_code=401,
             detail="Invalid username, phone or password"
         )
+    token = secrets.token_hex(16)
+    session[token] = {
+    "id": user["id"],
+    "username": user["username"],
+    "role": user["role"]
+    }
 
     return {
         "id": user["id"],
         "username": user["username"],
+        "role": user["role"],
+        'token': token,
         "message": "Login successful"
     }
 
