@@ -1,3 +1,4 @@
+import os, hmac, hashlib
 from datetime import date, timedelta
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
@@ -230,7 +231,17 @@ class LoginIn(BaseModel):
     username: str
     phone: str
     password: str
-    
+# storing password securely using hashing
+def hash_password(password):
+    salt = os.urandom(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
+    return salt.hex() + ":" + h.hex()
+
+def check_password(password, stored):
+    salt_hex, hash_hex = stored.split(":")
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), 100000)
+    return hmac.compare_digest(h.hex(), hash_hex)
+
     
 # LOGIN
 @app.post("/login")
@@ -238,13 +249,13 @@ def login_user(data: LoginIn):
     conn = get_login_db()
 
     user = conn.execute(
-        "SELECT * FROM login WHERE username = ? AND phone = ? AND password = ?",
-        (data.username, data.phone, data.password)
+        "SELECT * FROM login WHERE username = ? AND phone = ?",
+        (data.username, data.phone)
     ).fetchone()
 
     conn.close()
 
-    if not user:
+    if not user or not check_password(data.password, user["password"]):
         raise HTTPException(
             status_code=401,
             detail="Invalid username, phone or password"
@@ -279,14 +290,20 @@ def signin_user(data: LoginIn):
         # Create account in login.db
         login_conn.execute(
             "INSERT INTO login (username, phone, password) VALUES (?, ?, ?)",
-            (data.username, data.phone, data.password)
+            (data.username, data.phone, hash_password(data.password))
         )
 
         # Automatically add the user to library.db members table
-        members_conn.execute(
-            "INSERT INTO members (name, phone, joined_date) VALUES (?, ?, ?)",
-            (data.username, data.phone, date.today().isoformat())
-        )
+        already_member = members_conn.execute(
+            "SELECT id FROM members WHERE phone = ?",
+            (data.phone,)
+        ).fetchone()
+
+        if already_member is None:
+            members_conn.execute(
+                "INSERT INTO members (name, phone, joined_date) VALUES (?, ?, ?)",
+                (data.username, data.phone, date.today().isoformat())
+            )
 
         login_conn.commit()
         members_conn.commit()
@@ -304,3 +321,8 @@ def signin_user(data: LoginIn):
     finally:
         login_conn.close()
         members_conn.close()
+
+
+@app.get("/")
+def home():
+    return FileResponse("Static/index.html")

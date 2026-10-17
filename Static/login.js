@@ -1,12 +1,4 @@
 
-/* ==========================================================
-   login.js: Sign In + New User (Register)
-
-   Backend endpoints:
-     POST /signin -> {username, phone, password}
-     POST /login  -> {username, phone, password}
-   ========================================================== */
-
 const BASE_URL = "";
 
 const form = document.getElementById("login-form");
