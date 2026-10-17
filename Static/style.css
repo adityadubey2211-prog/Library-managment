@@ -364,6 +364,9 @@ input::placeholder { color: #7a6748; }
   .tab { font-size: .75rem; padding: 8px 8px 6px; }
 }
 
+/* ---------- Hidden elements must stay hidden ---------- */
+[hidden] { display: none !important; }
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

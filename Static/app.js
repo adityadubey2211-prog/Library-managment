@@ -5,7 +5,6 @@
 /* ---------- 1. API helper: change BASE_URL in ONE place ---------- */
 const BASE_URL = "";
 
-
 /* Read the token saved at login */
 function getToken() {
   try {
@@ -16,18 +15,26 @@ function getToken() {
   }
 }
 
+/* True only if the logged-in user is an admin */
+function isAdmin() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("member"));
+    return saved !== null && saved.role === "admin";
+  } catch (err) {
+    return false;
+  }
+}
+
 async function request(path, options = {}) {
   let response;
   try {
+    // Send the login token with every request
     const headers = { "Content-Type": "application/json" };
     const token = getToken();
     if (token) {
       headers["Authorization"] = "Bearer " + token;
     }
-    response = await fetch(BASE_URL + path, {
-      headers: headers,
-      ...options,
-    });
+    response = await fetch(BASE_URL + path, { ...options, headers });
   } catch (err) {
     // Network failure (server down, offline, etc.)
     throw new Error("Cannot reach the server. Please check your connection.");
@@ -138,6 +145,11 @@ function shortDate(value) {
   return value ? String(value).slice(0, 10) : "—";
 }
 
+/** Books table has 5 columns for admin, 4 for everyone else. */
+function bookCols() {
+  return isAdmin() ? 5 : 4;
+}
+
 /** Build a stamped status badge. */
 function stamp(text, colorClass) {
   return el("span", text, "stamp " + colorClass);
@@ -180,7 +192,7 @@ function renderDashboard() {
 function renderBooks(books) {
   const tbody = $("books-body");
   if (books.length === 0) {
-    showStateRow(tbody, 5, state.search ? "No matching books found" : "No books on the shelf yet");
+    showStateRow(tbody, bookCols(), state.search ? "No matching books found" : "No books on the shelf yet");
     return;
   }
   clear(tbody);
@@ -191,12 +203,15 @@ function renderBooks(books) {
     tr.appendChild(el("td", book.author));
     tr.appendChild(el("td", book.copies_available));
 
-    const actionCell = el("td");
-    const del = el("button", "Delete", "btn btn-red");
-    del.type = "button";
-    del.addEventListener("click", () => handleDeleteBook(book, del));
-    actionCell.appendChild(del);
-    tr.appendChild(actionCell);
+    // The Action cell (Delete button) exists only for admins
+    if (isAdmin()) {
+      const actionCell = el("td");
+      const del = el("button", "Delete", "btn btn-red");
+      del.type = "button";
+      del.addEventListener("click", () => handleDeleteBook(book, del));
+      actionCell.appendChild(del);
+      tr.appendChild(actionCell);
+    }
     tbody.appendChild(tr);
   });
 }
@@ -300,14 +315,14 @@ async function refreshAll() {
     renderDashboard();
   } catch (err) {
     toast(err.message, true);
-    showStateRow($("books-body"), 5, "Could not load books");
+    showStateRow($("books-body"), bookCols(), "Could not load books");
     showStateRow($("members-body"), 4, "Could not load members");
     showStateRow($("issued-body"), 9, "Could not load records");
   }
 }
 
 function showLoading() {
-  showStateRow($("books-body"), 5, "Fetching from the shelves…");
+  showStateRow($("books-body"), bookCols(), "Fetching from the shelves…");
   showStateRow($("members-body"), 4, "Opening the register…");
   showStateRow($("issued-body"), 9, "Reading the ledger…");
 }
@@ -381,16 +396,24 @@ async function handleReturn(record, button) {
 /** Live search with debounce. */
 const handleSearch = debounce(async (text) => {
   state.search = text.trim();
-  showStateRow($("books-body"), 5, "Searching the catalogue…");
+  showStateRow($("books-body"), bookCols(), "Searching the catalogue…");
   try {
     renderBooks(state.search ? await api.getBooks(state.search) : state.allBooks);
   } catch (err) {
     toast(err.message, true);
-    showStateRow($("books-body"), 5, "Search failed");
+    showStateRow($("books-body"), bookCols(), "Search failed");
   }
 }, 300);
 
 /* ---------- 8. Start ---------- */
+
+/* Normal users cannot add books or members: hide those forms */
+if (!isAdmin()) {
+  $("book-form").hidden = true;
+  $("member-form").hidden = true;
+  $("books-action-th").hidden = true;
+}
+
 $("book-form").addEventListener("submit", handleAddBook);
 $("member-form").addEventListener("submit", handleAddMember);
 $("issue-form").addEventListener("submit", handleIssue);
