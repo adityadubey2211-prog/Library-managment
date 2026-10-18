@@ -61,17 +61,17 @@ def init_db():
                 )
     """)
     conn.execute("""
-                 CREATE TABLE IF NOT EXISTS issues(
-                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        book_id INTEGER NOT NULL,
-                        member_id INTEGER NOT NULL,
-                        issue_date TEXT NOT NULL,
-                        due_date TEXT NOT NULL,
-                        return_date TEXT,
-                        fine INTEGER DEFAULT 0,
-                        FOREIGN KEY (book_id) REFERENCES books(id),
-                        FOREIGN KEY (member_id) REFERENCES members(id)
-                 )
+                CREATE TABLE IF NOT EXISTS issues(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    book_id INTEGER NOT NULL,
+                    member_id INTEGER NOT NULL,
+                    issue_date TEXT NOT NULL,
+                    due_date TEXT NOT NULL,
+                    return_date TEXT,
+                    fine INTEGER DEFAULT 0,
+                    FOREIGN KEY (book_id) REFERENCES books(id),
+                    FOREIGN KEY (member_id) REFERENCES members(id)
+                )
     """)
     conn.commit()
     conn.close()

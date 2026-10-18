@@ -25,6 +25,28 @@ function isAdmin() {
   }
 }
 
+/* The saved login info ({id, name, role, token}) or null */
+function getMember() {
+  try {
+    return JSON.parse(localStorage.getItem("member"));
+  } catch (err) {
+    return null;
+  }
+}
+
+/* Forget the login and go back to the login page */
+function logout() {
+  try {
+    localStorage.removeItem("member");
+  } catch (err) { /* storage blocked: nothing to remove */ }
+  window.location.replace("/login");
+}
+
+/* Login guard: nobody logged in means go to the login page */
+if (getMember() === null) {
+  window.location.replace("/login");
+}
+
 async function request(path, options = {}) {
   let response;
   try {
@@ -44,6 +66,10 @@ async function request(path, options = {}) {
   try { data = await response.json(); } catch (err) { /* empty or non-JSON body */ }
 
   if (!response.ok) {
+    // 401 = not logged in or session expired (e.g. server restarted)
+    if (response.status === 401) {
+      logout();
+    }
     let message = "Something went wrong.";
     if (data && typeof data.detail === "string") {
       message = data.detail;
@@ -406,6 +432,13 @@ const handleSearch = debounce(async (text) => {
 }, 300);
 
 /* ---------- 8. Start ---------- */
+
+/* Welcome text and logout button */
+const me = getMember();
+if (me) {
+  $("welcome-text").textContent = "Welcome, " + me.name + (isAdmin() ? " (admin)" : "");
+}
+$("logout-btn").addEventListener("click", logout);
 
 /* Normal users cannot add books or members: hide those forms */
 if (!isAdmin()) {
