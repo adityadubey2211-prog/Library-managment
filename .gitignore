@@ -13,3 +13,6 @@ __pycache__/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# data of books
+add_book.py
