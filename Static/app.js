@@ -259,25 +259,15 @@ function renderMembers() {
   });
 }
 
-function renderDropdowns() {
-  // Remember current selections so refreshes don't reset them
-  const memberSel = $("issue-member");
-  const bookSel = $("issue-book");
-  const prevMember = memberSel.value;
-  const prevBook = bookSel.value;
-
-  clear(memberSel);
-  memberSel.appendChild(new Option("Choose a member…", ""));
-  state.members.forEach((m) => memberSel.appendChild(new Option(m.name + " (#" + m.id + ")", m.id)));
-
-  clear(bookSel);
-  bookSel.appendChild(new Option("Choose a book…", ""));
-  state.allBooks
-    .filter((b) => b.copies_available > 0)
-    .forEach((b) => bookSel.appendChild(new Option(b.title + " — " + b.copies_available + " left", b.id)));
-
-  memberSel.value = prevMember;
-  bookSel.value = prevBook;
+/** Fill the member-name suggestions (native datalist). */
+function renderMemberNames() {
+  const list = $("member-names");
+  clear(list);
+  state.members.forEach((m) => {
+    const opt = document.createElement("option");
+    opt.value = m.name;
+    list.appendChild(opt);
+  });
 }
 
 function renderIssued() {
@@ -337,7 +327,7 @@ async function refreshAll() {
     }
     renderMembers();
     renderIssued();
-    renderDropdowns();
+    renderMemberNames();
     renderDashboard();
   } catch (err) {
     toast(err.message, true);
@@ -352,6 +342,98 @@ function showLoading() {
   showStateRow($("members-body"), 4, "Opening the register…");
   showStateRow($("issued-body"), 9, "Reading the ledger…");
 }
+
+/* ---------- Issue form helpers ---------- */
+let selectedBook = null;   // {id, title} chosen from the suggestions
+let suggestionItems = [];  // books currently listed
+let activeIndex = -1;      // highlighted suggestion (keyboard)
+
+/** Find the member whose name matches what was typed. */
+function findMemberByName(text) {
+  const name = text.trim().toLowerCase();
+  if (!name) throw new Error("Enter the member's user name.");
+  const matches = state.members.filter((m) => m.name.toLowerCase() === name);
+  if (matches.length === 0) throw new Error('No member named "' + text.trim() + '".');
+  if (matches.length > 1) throw new Error("More than one member has that name. Ask the librarian.");
+  return matches[0];
+}
+
+/** The book chosen from suggestions (or typed exactly). */
+function pickedBook() {
+  if (selectedBook) return selectedBook;
+  const typed = $("issue-book-search").value.trim().toLowerCase();
+  const exact = suggestionItems.filter((b) => b.title.toLowerCase() === typed);
+  if (exact.length === 1) return exact[0];
+  throw new Error("Please pick a book from the suggestions.");
+}
+
+/** Normal users get their own name filled in. */
+function prefillMemberName() {
+  const who = getMember();
+  if (!isAdmin() && who) $("issue-member").value = who.name;
+}
+
+function closeSuggestions() {
+  const box = $("book-suggestions");
+  box.hidden = true;
+  clear(box);
+  activeIndex = -1;
+  $("issue-book-search").setAttribute("aria-expanded", "false");
+}
+
+function chooseBook(book) {
+  selectedBook = { id: book.id, title: book.title };
+  $("issue-book-search").value = book.title;
+  closeSuggestions();
+}
+
+/** Move the highlight up or down. */
+function setActive(index) {
+  const items = $("book-suggestions").querySelectorAll(".suggestion");
+  if (items.length === 0) return;
+  activeIndex = (index + items.length) % items.length;
+  items.forEach((item, i) => {
+    item.classList.toggle("is-active", i === activeIndex);
+    item.setAttribute("aria-selected", String(i === activeIndex));
+  });
+}
+
+function renderSuggestions(books) {
+  const box = $("book-suggestions");
+  clear(box);
+  suggestionItems = books;
+  activeIndex = -1;
+
+  if (books.length === 0) {
+    box.appendChild(el("li", "No available book matches", "suggestion-empty"));
+  } else {
+    books.forEach((book) => {
+      const li = el("li", null, "suggestion");
+      li.setAttribute("role", "option");
+      li.appendChild(el("span", book.title, "suggestion-title"));
+      li.appendChild(el("span", book.author + " · " + book.copies_available + " left", "suggestion-meta"));
+      // mousedown fires before the input loses focus, so the click is not lost
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        chooseBook(book);
+      });
+      box.appendChild(li);
+    });
+  }
+  box.hidden = false;
+  $("issue-book-search").setAttribute("aria-expanded", "true");
+}
+
+/** Ask the server for books matching the text (only books with copies left). */
+const searchBookSuggestions = debounce(async (text) => {
+  try {
+    const books = await api.getBooks(text.trim());
+    renderSuggestions(books.filter((b) => b.copies_available > 0).slice(0, 8));
+  } catch (err) {
+    toast(err.message, true);
+    closeSuggestions();
+  }
+}, 250);
 
 /* ---------- 7. Event handlers ---------- */
 async function handleAddBook(e) {
@@ -400,12 +482,14 @@ async function handleIssue(e) {
   const form = e.target;
   const button = form.querySelector("button[type=submit]");
   await withBusy(button, async () => {
-    const res = await api.issueBook({
-      book_id: parseInt($("issue-book").value, 10),
-      member_id: parseInt($("issue-member").value, 10),
-    });
+    const member = findMemberByName($("issue-member").value);
+    const book = pickedBook();
+    const res = await api.issueBook({ book_id: book.id, member_id: member.id });
     toast((res.message || "Book issued") + (res.due_date ? " Due: " + shortDate(res.due_date) : ""));
     form.reset();
+    selectedBook = null;
+    closeSuggestions();
+    prefillMemberName();
     await refreshAll();
   });
 }
@@ -450,6 +534,27 @@ if (!isAdmin()) {
 $("book-form").addEventListener("submit", handleAddBook);
 $("member-form").addEventListener("submit", handleAddMember);
 $("issue-form").addEventListener("submit", handleIssue);
+
+/* Book search box with suggestions */
+const bookInput = $("issue-book-search");
+bookInput.addEventListener("input", () => {
+  selectedBook = null; // typing again means the old choice no longer applies
+  searchBookSuggestions(bookInput.value);
+});
+bookInput.addEventListener("focus", () => searchBookSuggestions(bookInput.value));
+bookInput.addEventListener("blur", closeSuggestions);
+bookInput.addEventListener("keydown", (e) => {
+  const open = !$("book-suggestions").hidden;
+  if (e.key === "ArrowDown" && open) { e.preventDefault(); setActive(activeIndex + 1); }
+  if (e.key === "ArrowUp" && open) { e.preventDefault(); setActive(activeIndex - 1); }
+  if (e.key === "Enter" && open && activeIndex >= 0) {
+    e.preventDefault();
+    chooseBook(suggestionItems[activeIndex]);
+  }
+  if (e.key === "Escape") closeSuggestions();
+});
+
+prefillMemberName();
 $("book-search").addEventListener("input", (e) => handleSearch(e.target.value));
 
 showLoading();

@@ -126,14 +126,17 @@
       <section id="panel-issue" class="panel" role="tabpanel" aria-labelledby="tab-issue" hidden>
         <h2>Issue / Return</h2>
 
-        <form id="issue-form" class="form-row">
+        <form id="issue-form" class="form-row" autocomplete="off">
           <div class="field">
-            <label for="issue-member">Member</label>
-            <select id="issue-member" required></select>
+            <label for="issue-member">Member user name</label>
+            <input id="issue-member" type="text" list="member-names" placeholder="Enter your user name" required maxlength="120">
+            <datalist id="member-names"></datalist>
           </div>
-          <div class="field">
-            <label for="issue-book">Book</label>
-            <select id="issue-book" required></select>
+          <div class="field suggest-field">
+            <label for="issue-book-search">Book</label>
+            <input id="issue-book-search" type="text" placeholder="Search a book…" required maxlength="200"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="book-suggestions">
+            <ul id="book-suggestions" class="suggestions" role="listbox" hidden></ul>
           </div>
           <button type="submit" class="btn btn-brass">Issue Book</button>
         </form>

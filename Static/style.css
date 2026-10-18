@@ -364,6 +364,55 @@ input::placeholder { color: #7a6748; }
   .tab { font-size: .75rem; padding: 8px 8px 6px; }
 }
 
+/* ---------- Book suggestions (autocomplete) ---------- */
+.suggest-field { position: relative; }
+
+.suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #fffaf0, #f1e4c0);
+  border: 1px solid var(--ink-soft);
+  border-radius: 6px;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, .45), inset 0 0 10px rgba(150, 110, 50, .25);
+}
+.suggestion,
+.suggestion-empty {
+  padding: 8px 12px;
+  border-bottom: 1px dashed rgba(90, 70, 48, .4);
+}
+.suggestion:last-child,
+.suggestion-empty:last-child { border-bottom: none; }
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+.suggestion:hover,
+.suggestion.is-active { background: rgba(217, 180, 90, .45); }
+.suggestion-title {
+  font-family: var(--font-hand);
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+.suggestion-meta {
+  font-size: .8rem;
+  color: var(--ink-soft);
+}
+.suggestion-empty {
+  font-family: var(--font-hand);
+  font-size: 1.2rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
 /* ---------- Welcome text + logout ---------- */
 .user-bar {
   display: flex;
