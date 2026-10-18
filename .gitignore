@@ -1,0 +1,15 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local databases (contain real users and password hashes)
+*.db
+
+# Editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db

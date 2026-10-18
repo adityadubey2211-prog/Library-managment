@@ -82,7 +82,7 @@ class BookIn(BaseModel):
     copies_available: int
     
 @app.get("/books")
-def get_books(search: str = ""):
+def get_books(search: str = "", user = Depends(get_current_user)):
     conn = get_db()
     pattern = f"%{search}%"
     rows = conn.execute("SELECT * FROM books WHERE title LIKE ? OR author LIKE ?", 
@@ -121,7 +121,7 @@ class MemberIn(BaseModel):
 
 # get all members
 @app.get("/members")
-def get_members(search: str = ""):
+def get_members(search: str = "", user = Depends(get_current_user)):
     conn = get_db()
     pattern = f"%{search}%"
     rows = conn.execute(
@@ -158,7 +158,7 @@ class IssueIn(BaseModel):
 
 
 @app.get("/issued")
-def get_issues():
+def get_issues(user = Depends(get_current_user)):
     conn = get_db()
     rows = conn.execute("""
         SELECT issues.id, books.title AS title, members.name AS member, 
@@ -171,7 +171,7 @@ def get_issues():
     return [dict(row) for row in rows]
 
 @app.post("/issue")
-def issue_book(data: IssueIn):
+def issue_book(data: IssueIn, user = Depends(get_current_user)):
     conn = get_db()
     # Check if the book is available
     book = conn.execute("SELECT * FROM books WHERE id = ?", (data.book_id,)).fetchone()
@@ -207,7 +207,7 @@ class ReturnIn(BaseModel):
     issue_id: int
     
 @app.post("/return/{issue_id}")
-def return_book(issue_id: int):
+def return_book(issue_id: int, user = Depends(get_current_user)):
     conn = get_db()
     issue = conn.execute("SELECT * FROM issues WHERE id = ?", (issue_id,)).fetchone()
     if not issue:
