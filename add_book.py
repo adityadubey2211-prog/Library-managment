@@ -269,14 +269,82 @@ books = [
     ("The Goal: A Process of Ongoing Improvement", "Eliyahu M. Goldratt", 200),
 ]
 
-conn = sqlite3.connect("library.db")
 
-conn.executemany(
-    "INSERT INTO books (title, author, copies_available) VALUES (?, ?, ?)",
-    books
+import requests
+from getpass import getpass
+
+# Replace this with your actual Render service URL
+BASE_URL = "https://library-managment-jbh5.onrender.com"
+
+username = input("Admin username: ")
+phone = input("Admin phone: ")
+password = getpass("Admin password: ")
+
+# Log in as admin
+response = requests.post(
+    f"{BASE_URL}/login",
+    json={
+        "username": username,
+        "phone": phone,
+        "password": password
+    },
+    timeout=60
 )
 
-conn.commit()
-conn.close()
+if response.status_code != 200:
+    print("Login failed:", response.text)
+    raise SystemExit
 
-print(f"{len(books)} books added successfully!")
+token = response.json()["token"]
+
+headers = {
+    "Authorization": f"Bearer {token}"
+}
+
+# Get books already present on Render
+response = requests.get(
+    f"{BASE_URL}/books",
+    headers=headers,
+    timeout=60
+)
+response.raise_for_status()
+
+existing_books = response.json()
+
+existing = {
+    (book["title"].strip().lower(), book["author"].strip().lower())
+    for book in existing_books
+}
+
+added = 0
+skipped = 0
+
+for title, author, copies in books:
+    key = (title.strip().lower(), author.strip().lower())
+
+    # Avoid adding the same title and author twice
+    if key in existing:
+        skipped += 1
+        continue
+
+    response = requests.post(
+        f"{BASE_URL}/books",
+        headers=headers,
+        json={
+            "title": title,
+            "author": author,
+            "copies_available": copies
+        },
+        timeout=60
+    )
+
+    if response.status_code == 200:
+        added += 1
+        existing.add(key)
+        print("Added:", title)
+    else:
+        print("Failed:", title, response.status_code, response.text)
+
+print("\nUpload finished!")
+print("Books added:", added)
+print("Books skipped:", skipped)
