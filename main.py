@@ -270,6 +270,52 @@ def hash_password(password):
     h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
     return salt.hex() + ":" + h.hex()
 
+# Create the first admin account from Render environment variables
+def create_admin_from_env():
+    username = os.getenv("ADMIN_USERNAME")
+    phone = os.getenv("ADMIN_PHONE")
+    password = os.getenv("ADMIN_PASSWORD")
+
+    # Do nothing if environment variables are missing
+    if not username or not phone or not password:
+        print("Admin environment variables are not configured.")
+        return
+
+    conn = get_login_db()
+
+    try:
+        existing = conn.execute(
+            "SELECT id, role FROM login WHERE phone = ?",
+            (phone,)
+        ).fetchone()
+
+        if existing:
+            if existing["role"] == "admin":
+                print("Admin account already exists.")
+            else:
+                print(
+                    "ADMIN_PHONE belongs to a normal user. "
+                    "Configure a new, unused phone number."
+                )
+            return
+
+        conn.execute(
+            """
+            INSERT INTO login (username, phone, password, role)
+            VALUES (?, ?, ?, ?)
+            """,
+            (username, phone, hash_password(password), "admin")
+        )
+
+        conn.commit()
+        print("Admin account created successfully.")
+
+    finally:
+        conn.close()
+
+
+create_admin_from_env()
+
 def check_password(password, stored):
     salt_hex, hash_hex = stored.split(":")
     h = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), 100000)
